@@ -1,6 +1,6 @@
 #main script of the robot
-import Motor from motor
-import LineSensor from linesensor
+from motor import Motor
+
 from utime import sleep
 paths = {
     ('st','da'):['L','RR','LOAD'],
