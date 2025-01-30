@@ -79,9 +79,10 @@ def reverse(direction):
 path = ('st','da')
 while True:
     for instruction in paths[path]:
-        state = find_type_of_line() #where robot is
+         #where robot is
         fulfilled = False
         while fulfilled == False:
+            state = find_type_of_line()j
             match state: #check we are in python 3.10
                 case 'ONLINE':
                     move_forward()
