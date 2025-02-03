@@ -1,11 +1,11 @@
 from machine import Pin, PWM
-from utime import sleep
-class Motor:
-    def __init__(self):
-        self.m1Dir = Pin(7 , Pin.OUT) # set motor direction
-        self.pwm1 = PWM(Pin(6)) # set speed
-        self.pwm1.freq(1000) # set max frequency
-        self.pwm1.duty_u16(0) # set duty cycle
+from time import sleep
+class Motor():
+    def __init__(self,dir_pin,pwm_pin):
+        self.m1Dir = Pin(dir_pin , Pin.OUT)   # set pin left wheel
+        self.pwm1 = PWM(Pin(pwm_pin))          
+        self.pwm1.freq(1000)
+        self.pwm1.duty_u16(0)
     def off(self):
         self.pwm1.duty_u16(0)
     def Forward(self,power):
@@ -22,3 +22,5 @@ while True:
     sleep(1)
     motor.Reverse()
     sleep(1)
+
+
