@@ -2,6 +2,9 @@
 from time import sleep
 from machine import Pin, PWM
 from time import sleep
+import struct
+import machine
+
 class Motor():
     def __init__(self,dir_pin,pwm_pin):
         self.m1Dir = Pin(dir_pin , Pin.OUT)   # set pin left wheel
@@ -16,6 +19,50 @@ class Motor():
     def reverse(self,power):
         self.m1Dir.value(1)
         self.pwm1.duty_u16(int(65535*power/100))
+
+class QRScanner:
+    def __init__(self, i2c_address=0x0C, sda_pin=18, scl_pin=19, freq=400000):
+        # Initialize the I2C interface
+        self.i2c_address = i2c_address
+        self.TINY_CODE_READER_I2C_ADDRESS = self.i2c_address
+        self.TINY_CODE_READER_DELAY = 0.05
+        self.TINY_CODE_READER_LENGTH_OFFSET = 0
+        self.TINY_CODE_READER_LENGTH_FORMAT = "H"
+        self.TINY_CODE_READER_MESSAGE_OFFSET = self.TINY_CODE_READER_LENGTH_OFFSET + struct.calcsize(self.TINY_CODE_READER_LENGTH_FORMAT)
+        self.TINY_CODE_READER_MESSAGE_SIZE = 254
+        self.TINY_CODE_READER_MESSAGE_FORMAT = "B" * self.TINY_CODE_READER_MESSAGE_SIZE
+        self.TINY_CODE_READER_I2C_FORMAT = self.TINY_CODE_READER_LENGTH_FORMAT + self.TINY_CODE_READER_MESSAGE_FORMAT
+        self.TINY_CODE_READER_I2C_BYTE_COUNT = struct.calcsize(self.TINY_CODE_READER_I2C_FORMAT)
+        
+        # Set up the I2C interface with the provided pins and frequency
+        self.i2c = machine.I2C(1,
+                               scl=machine.Pin(scl_pin),  # yellow
+                               sda=machine.Pin(sda_pin),  # blue
+                               freq=freq)
+        print(self.i2c.scan())
+
+    def scan(self, num_scans=5):
+        """Scan for QR codes a specific number of times."""
+        qr_codes = []
+
+        for _ in range(num_scans):
+            sleep(self.TINY_CODE_READER_DELAY)
+            read_data = self.i2c.readfrom(self.TINY_CODE_READER_I2C_ADDRESS, self.TINY_CODE_READER_I2C_BYTE_COUNT)
+            message_length, = struct.unpack_from(self.TINY_CODE_READER_LENGTH_FORMAT, read_data, self.TINY_CODE_READER_LENGTH_OFFSET)
+            message_bytes = struct.unpack_from(self.TINY_CODE_READER_MESSAGE_FORMAT, read_data, self.TINY_CODE_READER_MESSAGE_OFFSET)
+
+            if message_length == 0:
+                continue
+
+            try:
+                message_string = bytearray(message_bytes[0:message_length]).decode("utf-8")
+                qr_codes.append(message_string)  # Store found QR code
+            except:
+                print("Couldn't decode as UTF-8")
+                pass
+        if len(qr_codes) == 0:
+            return ''
+        return qr_codes[0]  # Return a list of decoded QR codes
 
 paths = {
     ('st','da'):['L','S','R','L','S','R','L','S','R','L','S','R','L','L','L','L','L','RR','LOAD'],
@@ -38,19 +85,16 @@ paths = {
     ('hd','db'):[],
 
 }
+
 motor_left = Motor(4,5)
 motor_right = Motor(7,6)
-class temp():
-    def __init__(self):
-        self.value  = 0
 
 flls = Pin(17, Pin.IN, Pin.PULL_DOWN)#far left line sensor
-#lls = LineSensor() #left line sensor
-#rls = LineSensor()
 lls = Pin(12, Pin.IN, Pin.PULL_DOWN)
 rls = Pin(11, Pin.IN, Pin.PULL_DOWN)
 frls = Pin(16, Pin.IN, Pin.PULL_DOWN)
-
+ultrasound = Pin(12, Pin.IN, Pin.PULL_DOWN) #random pin
+qr_scanner = QRScanner()
 led = Pin(14, Pin.OUT)
 
 def find_type_of_line(): #tells us if we are on a line, veering off, at a junction(left,right,T)
@@ -111,15 +155,53 @@ def adjust(direction):
         sleep(0.05)
         motor_left.off()
         motor_right.off()
-def reverse(direction):
+
+def move_reverse(direction):
     pass
+
+def find_next_location(longtext): #converts qr string to an actionable location
+    return 'hb'
+
+def lift():
+    pass
+
+def load():
+    # position sensor:
+    while ultrasound.value() >= 19: #approach till close
+        move_forward()
+    while ultrasound.value() <= 19: #approach till far back enough
+        move_reverse()
+    QR = qr_scanner.scan()
+    while QR == '':
+        #can add error repitition later
+        move_forward(0.1)
+        qr_scanner.scan()
+    location = find_next_location(QR)
+    while ultrasound.value() >= 1: #change distance later
+            state = find_type_of_line()
+            if state == 'ONLINE':
+                move_forward()
+            elif state == 'OFFTHEGRID':
+                break
+            elif state == 'OFFRIGHT':
+                adjust('R')
+            elif state == 'OFFLEFT':
+                adjust('L')
+    lift()
+    return location
+    
+    
+
 #main loop:
 
 path = ('st','da')
 while True:
+    current_location = path[1]
     for instruction in paths[path]:
         #where robot is
-        fulfilled = False
+        fulfilled = True
+        if instruction != 'LOAD':
+            fulfilled = False
         while fulfilled == False:
             state = find_type_of_line()
             if state == 'ONLINE':
@@ -135,13 +217,13 @@ while True:
                     turn('R')
                     fulfilled = True
                 elif instruction == 'RR':
-                    reverse()
+                    move_reverse()
                     fulfilled = True
                 if instruction == 'L':
                     turn('L')
                     fulfilled = True
                 elif instruction == 'RL':
-                    reverse()
+                    move_reverse()
                     fulfilled = True
                 elif instruction == 'S':
                     move_forward(0.5)
@@ -151,13 +233,13 @@ while True:
                     turn('R')
                     fulfilled = True
                 elif instruction == 'RR':
-                    reverse()
+                    move_reverse()
                     fulfilled = True
                 if instruction == 'L':
                     turn('L')
                     fulfilled = True
                 elif instruction == 'RL':
-                    reverse()
+                    move_reverse()
                     fulfilled = True
                 elif instruction == 'S':
                     move_forward(0.5)
@@ -167,17 +249,20 @@ while True:
                     turn('R')
                     fulfilled = True
                 elif instruction == 'RR':
-                    reverse()
+                    move_reverse()
                     fulfilled = True
                 if instruction == 'L':
                     turn('L')
                     fulfilled = True
                 elif instruction == 'RL':
-                    reverse()
+                    move_reverse()
                     fulfilled = True
                 elif instruction == 'S':
                     move_forward(0.5)
                     fulfilled = True
+        if instruction == 'LOAD':
+            next_location = load()
+            path = (current_location,next_location)
 
 
 
