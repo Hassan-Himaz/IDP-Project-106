@@ -1,6 +1,6 @@
 #main script of the robot
 from time import sleep
-from machine import Pin, PWM
+from machine import Pin, PWM, ADC
 from time import sleep
 import struct
 import machine
@@ -64,6 +64,16 @@ class QRScanner:
             return ''
         return qr_codes[0]  # Return a list of decoded QR codes
 
+
+class ultrasound():
+    def __init__(self):
+        self.sensor_pin = ADC(28)
+
+    def value(self):
+        self.pin_value = self.sensor_pin.read_u16()
+        self.dist = (self.pin_value*500)/65535 
+        return self.dist
+    
 paths = {
     ('st','da'):['L','S','R','L','S','R','L','S','R','L','S','R','L','L','L','L','L','RR','LOAD'],
     ('st','db'):['R','RL','LOAD'],
@@ -195,8 +205,8 @@ def load():
 #main loop:
 
 path = ('st','da')
-while True:
-    current_location = path[1]
+while True: #needs to be simplified with new junction detection
+    current_location = path[1] #where we will end up after completing the path
     for instruction in paths[path]:
         #where robot is
         fulfilled = True
