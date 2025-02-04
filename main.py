@@ -64,14 +64,28 @@ class QRScanner:
             return ''
         return qr_codes[0]  # Return a list of decoded QR codes
 
-
-class ultrasound():
+class Ultrasound():
     def __init__(self):
         self.sensor_pin = ADC(28)
 
     def value(self):
-        self.pin_value = self.sensor_pin.read_u16()
-        self.dist = (self.pin_value*500)/65535 
+        self.measurements = []
+        self.trials = 0
+        while(len(self.measurements) <= 20): # maximum time should be 0.03 seconds
+            self.pin_value = self.sensor_pin.read_u16()
+            self.one_measurement = (self.pin_value*500)/65535 
+            if(self.one_measurement < 30):
+                self.measurements.append(self.one_measurement)
+            sleep(0.001)
+            self.trials += 1
+            if self.trials > 30:
+                return 30 # if we are having to take too many readings then we have an issue and should just return the base value
+        self.dist = 0
+        self.measurements.sort()
+        self.measurements = self.measurements[4:15]
+        for x in self.measurements:
+            self.dist += x
+        self.dist = self.dist/len(self.measurements)
         return self.dist
     
 paths = {
@@ -103,7 +117,7 @@ flls = Pin(17, Pin.IN, Pin.PULL_DOWN)#far left line sensor
 lls = Pin(12, Pin.IN, Pin.PULL_DOWN)
 rls = Pin(11, Pin.IN, Pin.PULL_DOWN)
 frls = Pin(16, Pin.IN, Pin.PULL_DOWN)
-ultrasound = Pin(12, Pin.IN, Pin.PULL_DOWN) #random pin
+ultrasound = Ultrasound()
 qr_scanner = QRScanner()
 led = Pin(14, Pin.OUT)
 
@@ -116,14 +130,14 @@ def find_type_of_line(): #tells us if we are on a line, veering off, at a juncti
     elif flls.value() == 0 and lls.value() == 0 and rls.value() == 1 and frls.value() == 0:
         return 'OFFLEFT'
     elif flls.value() == 1 and lls.value() == 1 and rls.value() == 0 and frls.value() == 0:
-        return 'LEFTTURN'
+        return 'TJUNCTION'
     elif flls.value() == 0 and lls.value() == 0 and rls.value() == 1 and frls.value() == 1:
-        return 'RIGHTTURN'
+        return 'TJUNCTION'
     elif flls.value() == 1 and lls.value() == 1 and rls.value() == 1 and frls.value() == 1:
         return 'TJUNCTION'
     else:
         return 'TJUNCTION'
-    #then other logic that turns the bot
+
 
 def move_forward(time=0.05):
     motor_left.forward(100)
@@ -142,13 +156,19 @@ def turn(direction):
         sleep(0.70)
         motor_right.off()
         motor_left.off()
-    else:
+    elif direction == 'L':
         motor_left.forward(100)
         motor_right.forward(100)
         sleep(0.5)
         motor_right.forward(100)
         motor_left.reverse(100)
         sleep(0.70)
+        motor_left.off()
+        motor_right.off()
+    else:
+        motor_right.forward(100)
+        motor_left.reverse(100)
+        sleep(1.40) #need to check this
         motor_left.off()
         motor_right.off()
 
@@ -166,8 +186,12 @@ def adjust(direction):
         motor_left.off()
         motor_right.off()
 
-def move_reverse(direction):
-    pass
+def move_reverse(time=0.05):
+    motor_left.reverse(100)
+    motor_right.reverse(100)
+    sleep(time)
+    motor_left.off()
+    motor_right.off()
 
 def find_next_location(longtext): #converts qr string to an actionable location
     return 'hb'
@@ -175,49 +199,71 @@ def find_next_location(longtext): #converts qr string to an actionable location
 def lift():
     pass
 
-def load():
+def drop():
+    pass
+
+def load(current_location = 'd1'):
     # position sensor:
     while ultrasound.value() >= 19: #approach till close
         move_forward()
     while ultrasound.value() <= 19: #approach till far back enough
         move_reverse()
     QR = qr_scanner.scan()
+    tries = 0
     while QR == '':
         #can add error repitition later
         move_forward(0.1)
         qr_scanner.scan()
+        tries += 1
+        if tries > 100: #we are not finding a code so go to other depot
+            if current_location == 'd2':
+                return 'st'
+            return 'd2'
     location = find_next_location(QR)
     while ultrasound.value() >= 1: #change distance later
             state = find_type_of_line()
             if state == 'ONLINE':
                 move_forward()
-            elif state == 'OFFTHEGRID':
-                break
+            elif state == 'TJUNCTION': #if we get to the junction that the thing is placed on we can ignore the ultrasound
+                lift()
+                return location
             elif state == 'OFFRIGHT':
                 adjust('R')
             elif state == 'OFFLEFT':
                 adjust('L')
     lift()
+    turn('U')
     return location
-    
-    
+
+def unload():
+    state = find_type_of_line()
+    while state != 'TJUNCTION':
+        if state == 'ONLINE':
+            move_forward()
+        elif state == 'OFFRIGHT':
+            adjust('R')
+        elif state == 'OFFLEFT':
+            adjust('L')
+    drop() 
+    move_reverse(1) #we reverse so we no longer are touching the block
+    turn('U')
 
 #main loop:
 
 path = ('st','da')
-while True: #needs to be simplified with new junction detection
+while True: #needs to be simplified with new junction detection, needs to count packages delivered
     current_location = path[1] #where we will end up after completing the path
     for instruction in paths[path]:
-        #where robot is
+        #This logic is messy but not wrong
         fulfilled = True
         if instruction != 'LOAD':
+            fulfilled = False
+        elif instruction != 'UNLOAD':
             fulfilled = False
         while fulfilled == False:
             state = find_type_of_line()
             if state == 'ONLINE':
                 move_forward()
-            elif state == 'OFFTHEGRID':
-                break
             elif state == 'OFFRIGHT':
                 adjust('R')
             elif state == 'OFFLEFT':
@@ -271,8 +317,11 @@ while True: #needs to be simplified with new junction detection
                     move_forward(0.5)
                     fulfilled = True
         if instruction == 'LOAD':
-            next_location = load()
+            next_location = load(current_location) #hope this works
             path = (current_location,next_location)
-
+        elif instruction == 'UNLOAD':
+            unload()
+            next_location = 'd1'
+            path = (current_location,next_location)
 
 
