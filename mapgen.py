@@ -20,3 +20,4 @@ while True:
     data[tuple(parts)] = values  # Store 'a' as a tuple and 'b' as a list
 
 print(data)
+#{('st', 'da'): ['S', 'R', 'L', 'LOAD'], ('da', 'ha'): ['L', 'S', 'R', 'UNLOAD'] ,('ha', 'da'): ['L', 'S', 'L', 'LOAD'], ('da', 'hb'): ['S', 'L', 'L', 'UNLOAD'], ('hb', 'da'): ['R', 'R', 'S', 'LOAD'], ('da', 'hc'): ['S', 'L', 'S', 'R', 'L', 'UNLOAD'], ('hc', 'da'): ['R', 'L', 'S', 'L', 'S', 'LOAD'], ('da', 'hd'): ['S', 'S', 'L', 'L', 'UNLOAD'], ('hd', 'da'): ['R', 'R', 'S', 'S', 'LOAD']}
