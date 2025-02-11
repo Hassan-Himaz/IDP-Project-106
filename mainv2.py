@@ -206,7 +206,7 @@ paths = {
     ('st','da'):['LOAD'],
     ('st','db'):['L','S','R','L','S','R','L','S','R','L','S','R','L','L','L','L','L','RR','R','RL','LOAD'],
     ('da','ha'):['L','S','RL','DROP'],
-    ('da','hb'):[],
+    ('da','hb'):['R','R','R','R','R','R','R','R','R','R','R'],
     ('da','hc'):[],
     ('da','hd'):[],
     ('db','ha'):[],
@@ -233,7 +233,6 @@ rls = Pin(11, Pin.IN, Pin.PULL_DOWN)
 frls = Pin(16, Pin.IN, Pin.PULL_DOWN)
 ultrasound = Ultrasound()
 qr_scanner = QRScanner()
-led = Pin(14, Pin.OUT)
 
 def find_type_of_line(): #tells us if we are on a line, veering off, at a junction(left,right,T)
     print(flls.value(),lls.value(),rls.value(),frls.value())
@@ -263,20 +262,14 @@ def move_forward(time=0.05):
 def turn(direction):
     if direction == 'R':
         motor_left.forward(100)
-        motor_right.forward(100)
-        sleep(0.5)
-        motor_left.forward(100)
-        motor_right.reverse(100)
-        sleep(0.70)
+        motor_right.forward(20)
+        sleep(1.7)
         motor_right.off()
         motor_left.off()
     elif direction == 'L':
-        motor_left.forward(100)
+        motor_left.forward(20)
         motor_right.forward(100)
-        sleep(0.5)
-        motor_right.forward(100)
-        motor_left.reverse(100)
-        sleep(0.70)
+        sleep(1.7)
         motor_left.off()
         motor_right.off()
     else:
@@ -365,7 +358,9 @@ def unload():
 
 #main loop:
 
-path = ('st','da')
+path = ('da','hb')
+
+led_pin.value(0)
 while True: #needs to be simplified with new junction detection, needs to count packages delivered
     current_location = path[1] #where we will end up after completing the path
     
@@ -379,7 +374,6 @@ while True: #needs to be simplified with new junction detection, needs to count 
         elif instruction != 'UNLOAD':
             fulfilled = False
         while fulfilled == False:
-            led_pin.value(1)
             state = find_type_of_line()
             if state == 'ONLINE':
                 move_forward()
@@ -420,6 +414,7 @@ while True: #needs to be simplified with new junction detection, needs to count 
                     move_forward(0.5)
                     fulfilled = True
             elif state == 'TJUNCTION':
+                led_pin.value(1)
                 if instruction == 'R':
                     turn('R')
                     fulfilled = True
