@@ -301,7 +301,9 @@ def move_reverse(time=0.05):
     motor_right.off()
 
 def find_next_location(longtext): #converts qr string to an actionable location
+    #can add in process to convert long text into actionable qr code
     return 'hb'
+    return 'h' + longtext[0].lower()
 
 def lift():
     pass
@@ -324,9 +326,13 @@ def load(current_location = 'd1'):
         qr_scanner.scan()
         tries += 1
         if tries > 100: #we are not finding a code so go to other depot
+            #added line as qr code no work
+            QR = 'A'
             if current_location == 'd2':
-                return 'st'
-            return 'd2'
+                pass
+                #return 'st'
+            pass
+            #return 'd2'
     location = find_next_location(QR)
     while ultrasound.value() >= 1: #change distance later
             state = find_type_of_line()
