@@ -152,7 +152,7 @@ class QRScanner:
                                freq=freq)
         print(self.i2c.scan())
 
-    def scan(self, num_scans=5):
+    def scan(self, num_scans=10):
         """Scan for QR codes a specific number of times."""
         qr_codes = []
 
@@ -202,24 +202,24 @@ class Ultrasound():
         return self.dist
 
 led_pin = Pin(22,Pin.OUT)
+button_pin = Pin(14, Pin.IN, Pin.PULL_DOWN)
 paths = {
-    ('st','da'):['LOAD'],
-    ('st','db'):['L','S','R','L','S','R','L','S','R','L','S','R','L','L','L','L','L','RR','R','RL','LOAD'],
-    ('da','ha'):['L','S','RL','DROP'],
-    ('da','hb'):['R','R','R','R','R','R','R','R','R','R','R'],
-    ('da','hc'):[],
-    ('da','hd'):[],
+    ('st', 'da'): ['S', 'R', 'R', 'LOAD'],
+    ('da', 'ha'): ['L', 'S', 'R', 'UNLOAD'],
+    ('ha', 'da'): ['L', 'S', 'L', 'LOAD'],
+    ('da', 'hb'): ['S', 'L', 'L', 'UNLOAD'],
+    ('hb', 'da'): ['R', 'R', 'S', 'LOAD'],
+    ('da', 'hc'): ['S', 'L', 'S', 'R', 'L', 'UNLOAD'],
+    ('hc', 'da'): ['R', 'L', 'S', 'L', 'S', 'LOAD'],
+    ('da', 'hd'): ['S', 'S', 'L', 'L', 'UNLOAD'],
+    ('hd', 'da'): ['R', 'R', 'S', 'S', 'LOAD'],
     ('db','ha'):[],
     ('db','hb'):[],
     ('db','hc'):[],
     ('db','hd'):[],
-    ('ha','da'):[],
     ('ha','db'):[],
-    ('hb','da'):[],
     ('hb','db'):[],
-    ('hc','da'):[],
     ('hc','db'):[],
-    ('hd','da'):[],
     ('hd','db'):[],
 
 }
@@ -263,19 +263,34 @@ def turn(direction):
     if direction == 'R':
         motor_left.forward(100)
         motor_right.forward(20)
-        sleep(1.7)
+        sleep(1.75)
         motor_right.off()
         motor_left.off()
     elif direction == 'L':
         motor_left.forward(20)
         motor_right.forward(100)
-        sleep(1.7)
+        sleep(1.75)
+        motor_left.off()
+        motor_right.off()
+    elif direction == 'UR':
+        motor_left.forward(100)
+        motor_right.reverse(100)
+        sleep(1.5) #need to check this
+        motor_left.off()
+        motor_right.off()
+    elif direction == 'BO': # "back out"
+        motor_left.reverse(20)
+        motor_right.reverse(100)
+        sleep(1.75)
+        motor_left.forward(100)
+        motor_right.forward(100)
+        sleep(0.3)
         motor_left.off()
         motor_right.off()
     else:
         motor_right.forward(100)
         motor_left.reverse(100)
-        sleep(1.40) #need to check this
+        sleep(1.50) #need to check this
         motor_left.off()
         motor_right.off()
 
@@ -312,27 +327,42 @@ def drop():
     pass
 
 def load(current_location = 'd1'):
+    
     print('loading')
     # position sensor:
-    while ultrasound.value() >= 19: #approach till close
-        move_forward()
-    while ultrasound.value() <= 19: #approach till far back enough
+
+    while ultrasound.value() >= 12: #approach till close
+        state = find_type_of_line()
+        if state == 'ONLINE':
+            move_forward()
+        elif state == 'TJUNCTION': #if we get to the junction that the thing is placed on we can ignore the ultrasound
+            lift()
+            turn('UR')
+            return location
+        elif state == 'OFFRIGHT':
+            adjust('R')
+        elif state == 'OFFLEFT':
+            adjust('L')
+        #move_forward()
+    while ultrasound.value() <= 10: #approach till far back enough
         move_reverse()
+
     QR = qr_scanner.scan()
     tries = 0
     while QR == '':
         #can add error repitition later
-        move_forward(0.1)
+        move_forward(0.01)
         qr_scanner.scan()
         tries += 1
-        if tries > 100: #we are not finding a code so go to other depot
+        if tries > 3: #we are not finding a code so go to other depot
             #added line as qr code no work
-            QR = 'A'
+            QR = 'B'
             if current_location == 'd2':
                 pass
                 #return 'st'
             pass
             #return 'd2'
+    
     location = find_next_location(QR)
     while ultrasound.value() >= 1: #change distance later
             state = find_type_of_line()
@@ -340,13 +370,14 @@ def load(current_location = 'd1'):
                 move_forward()
             elif state == 'TJUNCTION': #if we get to the junction that the thing is placed on we can ignore the ultrasound
                 lift()
+                turn('UR')
                 return location
             elif state == 'OFFRIGHT':
                 adjust('R')
             elif state == 'OFFLEFT':
                 adjust('L')
     lift()
-    turn('U')
+    turn('UR')
     return location
 
 def unload():
@@ -364,21 +395,27 @@ def unload():
 
 #main loop:
 
-path = ('da','hb')
+path = ('st','da')
 
 led_pin.value(0)
+
+while True:
+    if button_pin.value() != 1:
+        sleep(0.05)
+    else:
+        break
 while True: #needs to be simplified with new junction detection, needs to count packages delivered
     current_location = path[1] #where we will end up after completing the path
     
     for instruction in paths[path]:
         
         #This logic is messy but not wrong
-        fulfilled = True
+        fulfilled = False
         print(instruction)
-        if instruction != 'LOAD':
-            fulfilled = False
-        elif instruction != 'UNLOAD':
-            fulfilled = False
+        if instruction == 'LOAD':
+            fulfilled = True
+        elif instruction == 'UNLOAD':
+            fulfilled = True
         while fulfilled == False:
             state = find_type_of_line()
             if state == 'ONLINE':
@@ -440,9 +477,13 @@ while True: #needs to be simplified with new junction detection, needs to count 
             print(load)
             next_location = load(current_location) #hope this works
             path = (current_location,next_location)
+            fulfilled = True
+            
         elif instruction == 'UNLOAD':
             unload()
             next_location = 'd1'
             path = (current_location,next_location)
+            fulfilled = True
+
 
 
