@@ -131,50 +131,45 @@ def tof_scan():
 # Adjust measurement frequency
 
 
-class QRScanner:
-    def __init__(self, i2c_address=0x0C, sda_pin=18, scl_pin=19, freq=400000):
-        # Initialize the I2C interface
-        self.i2c_address = i2c_address
-        self.TINY_CODE_READER_I2C_ADDRESS = self.i2c_address
-        self.TINY_CODE_READER_DELAY = 0.05
-        self.TINY_CODE_READER_LENGTH_OFFSET = 0
-        self.TINY_CODE_READER_LENGTH_FORMAT = "H"
-        self.TINY_CODE_READER_MESSAGE_OFFSET = self.TINY_CODE_READER_LENGTH_OFFSET + struct.calcsize(self.TINY_CODE_READER_LENGTH_FORMAT)
-        self.TINY_CODE_READER_MESSAGE_SIZE = 254
-        self.TINY_CODE_READER_MESSAGE_FORMAT = "B" * self.TINY_CODE_READER_MESSAGE_SIZE
-        self.TINY_CODE_READER_I2C_FORMAT = self.TINY_CODE_READER_LENGTH_FORMAT + self.TINY_CODE_READER_MESSAGE_FORMAT
-        self.TINY_CODE_READER_I2C_BYTE_COUNT = struct.calcsize(self.TINY_CODE_READER_I2C_FORMAT)
-        
-        # Set up the I2C interface with the provided pins and frequency
-        self.i2c = machine.I2C(1,
-                               scl=machine.Pin(scl_pin),  # yellow
-                               sda=machine.Pin(sda_pin),  # blue
-                               freq=freq)
-        print(self.i2c.scan())
+TINY_CODE_READER_I2C_ADDRESS = 0x0C
+# How long to pause between sensor polls.
+TINY_CODE_READER_DELAY = 0.05
+TINY_CODE_READER_LENGTH_OFFSET = 0
+TINY_CODE_READER_LENGTH_FORMAT = "H"
+TINY_CODE_READER_MESSAGE_OFFSET = TINY_CODE_READER_LENGTH_OFFSET + struct.calcsize(TINY_CODE_READER_LENGTH_FORMAT)
+TINY_CODE_READER_MESSAGE_SIZE = 254
+TINY_CODE_READER_MESSAGE_FORMAT = "B" * TINY_CODE_READER_MESSAGE_SIZE
+TINY_CODE_READER_I2C_FORMAT = TINY_CODE_READER_LENGTH_FORMAT + TINY_CODE_READER_MESSAGE_FORMAT
+TINY_CODE_READER_I2C_BYTE_COUNT = struct.calcsize(TINY_CODE_READER_I2C_FORMAT)
+# Set up for the Pico, pin numbers will vary according to your setup.
+i2c = machine.I2C(1,
+                  scl=machine.Pin(19), # yellow
+                  sda=machine.Pin(18), # blue
+                  freq=400000)
+ 
+print(i2c.scan())
+ 
+# Keep looping and reading the sensor results until we get a QR code
+def scan():
+    for x in range(100): #these can be changed
+        sleep(TINY_CODE_READER_DELAY)
+        read_data = i2c.readfrom(TINY_CODE_READER_I2C_ADDRESS,
+                                 TINY_CODE_READER_I2C_BYTE_COUNT)
+        #print('raw data',read_data)
+        message_length,  = struct.unpack_from(TINY_CODE_READER_LENGTH_FORMAT, read_data,
+    TINY_CODE_READER_LENGTH_OFFSET)
+        message_bytes = struct.unpack_from(TINY_CODE_READER_MESSAGE_FORMAT, read_data,
+    TINY_CODE_READER_MESSAGE_OFFSET)
+        try:
+            message_string = bytearray(message_bytes[0:message_length]).decode("utf-8")
+            print(message_string)
+            return(message_string)
+        except:
+            print("Couldn't decode as UTF 8")
+            pass
 
-    def scan(self, num_scans=5):
-        """Scan for QR codes a specific number of times."""
-        qr_codes = []
-
-        for _ in range(num_scans):
-            sleep(self.TINY_CODE_READER_DELAY)
-            read_data = self.i2c.readfrom(self.TINY_CODE_READER_I2C_ADDRESS, self.TINY_CODE_READER_I2C_BYTE_COUNT)
-            message_length, = struct.unpack_from(self.TINY_CODE_READER_LENGTH_FORMAT, read_data, self.TINY_CODE_READER_LENGTH_OFFSET)
-            message_bytes = struct.unpack_from(self.TINY_CODE_READER_MESSAGE_FORMAT, read_data, self.TINY_CODE_READER_MESSAGE_OFFSET)
-
-            if message_length == 0:
-                continue
-
-            try:
-                message_string = bytearray(message_bytes[0:message_length]).decode("utf-8")
-                qr_codes.append(message_string)  # Store found QR code
-            except:
-                print("Couldn't decode as UTF-8")
-                pass
-        if len(qr_codes) == 0:
-            return ''
-        return qr_codes[0]  # Return a list of decoded QR codes
-
+        return ''
+ 
 class Ultrasound():
     def __init__(self):
         self.sensor_pin = ADC(28)
@@ -318,12 +313,12 @@ def load(current_location = 'd1'):
         move_forward()
     while ultrasound.value() <= 19: #approach till far back enough
         move_reverse()
-    QR = qr_scanner.scan()
+    QR = scan()
     tries = 0
     while QR == '':
         #can add error repitition later
         move_forward(0.1)
-        qr_scanner.scan()
+        scan()
         tries += 1
         if tries > 100: #we are not finding a code so go to other depot
             #added line as qr code no work
