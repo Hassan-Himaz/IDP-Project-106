@@ -227,7 +227,7 @@ lls = Pin(12, Pin.IN, Pin.PULL_DOWN)
 rls = Pin(11, Pin.IN, Pin.PULL_DOWN)
 frls = Pin(16, Pin.IN, Pin.PULL_DOWN)
 ultrasound = Ultrasound()
-qr_scanner = QRScanner()
+#qr_scanner = QRScanner()
 
 def find_type_of_line(): #tells us if we are on a line, veering off, at a junction(left,right,T)
     print(flls.value(),lls.value(),rls.value(),frls.value())
