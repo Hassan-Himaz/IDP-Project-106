@@ -143,48 +143,6 @@ def tof_scan():
 
 
 
-class QRScanner:
-
-
-    def __init__(self, i2c_address=0x0C, sda_pin=18, scl_pin=19, freq=400000):
-        # Initialize the I2C interface
-        self.i2c_address = i2c_address
-        self.TINY_CODE_READER_I2C_ADDRESS = self.i2c_address
-        self.TINY_CODE_READER_DELAY = 0.05
-        self.TINY_CODE_READER_LENGTH_OFFSET = 0
-        self.TINY_CODE_READER_LENGTH_FORMAT = "H"
-        self.TINY_CODE_READER_MESSAGE_OFFSET = self.TINY_CODE_READER_LENGTH_OFFSET + struct.calcsize(self.TINY_CODE_READER_LENGTH_FORMAT)
-        self.TINY_CODE_READER_MESSAGE_SIZE = 254
-        self.TINY_CODE_READER_MESSAGE_FORMAT = "B" * self.TINY_CODE_READER_MESSAGE_SIZE
-        self.TINY_CODE_READER_I2C_FORMAT = self.TINY_CODE_READER_LENGTH_FORMAT + self.TINY_CODE_READER_MESSAGE_FORMAT
-        self.TINY_CODE_READER_I2C_BYTE_COUNT = struct.calcsize(self.TINY_CODE_READER_I2C_FORMAT)
-        # Set up the I2C interface with the provided pins and frequency
-        self.i2c = machine.I2C(1,
-                               scl=machine.Pin(scl_pin), # yellow
-                               sda=machine.Pin(sda_pin), # blue
-                               freq=freq)
-        print(self.i2c.scan())
-
-
-def scan():
-    for x in range(10): #these can be changed
-        print('trying')
-        sleep(TINY_CODE_READER_DELAY)
-        read_data = i2c.readfrom(TINY_CODE_READER_I2C_ADDRESS,
-                                 TINY_CODE_READER_I2C_BYTE_COUNT)
-        print('raw data',read_data)
-        message_length, = struct.unpack_from(TINY_CODE_READER_LENGTH_FORMAT, read_data,
-    TINY_CODE_READER_LENGTH_OFFSET)
-        message_bytes = struct.unpack_from(TINY_CODE_READER_MESSAGE_FORMAT, read_data,
-    TINY_CODE_READER_MESSAGE_OFFSET)
-        try:
-            message_string = bytearray(message_bytes[0:message_length]).decode("utf-8")
-            print(message_string)
-            return(message_string)
-        except:
-            print("Couldn't decode as UTF 8")
-            pass
-    return ''
 TINY_CODE_READER_I2C_ADDRESS = 0x0C
 TINY_CODE_READER_DELAY = 0.1
 TINY_CODE_READER_LENGTH_OFFSET = 0
@@ -204,25 +162,27 @@ print(i2c.scan())
 
 
 def scan():
-    for x in range(10): #these can be changed
-        print('trying')
-        sleep(TINY_CODE_READER_DELAY)
-        read_data = i2c.readfrom(TINY_CODE_READER_I2C_ADDRESS,
-                                 TINY_CODE_READER_I2C_BYTE_COUNT)
-        print('raw data',read_data)
-        message_length, = struct.unpack_from(TINY_CODE_READER_LENGTH_FORMAT, read_data,
-    TINY_CODE_READER_LENGTH_OFFSET)
-        message_bytes = struct.unpack_from(TINY_CODE_READER_MESSAGE_FORMAT, read_data,
-    TINY_CODE_READER_MESSAGE_OFFSET)
-        try:
-            message_string = bytearray(message_bytes[0:message_length]).decode("utf-8")
-            print(message_string)
-            return(message_string)
-        except:
-            print("Couldn't decode as UTF 8")
-            pass
-    return ''
-
+    try:
+        for x in range(10): #these can be changed
+            print('trying')
+            sleep(TINY_CODE_READER_DELAY)
+            read_data = i2c.readfrom(TINY_CODE_READER_I2C_ADDRESS,
+                                     TINY_CODE_READER_I2C_BYTE_COUNT)
+            print('raw data',read_data)
+            message_length, = struct.unpack_from(TINY_CODE_READER_LENGTH_FORMAT, read_data,
+        TINY_CODE_READER_LENGTH_OFFSET)
+            message_bytes = struct.unpack_from(TINY_CODE_READER_MESSAGE_FORMAT, read_data,
+        TINY_CODE_READER_MESSAGE_OFFSET)
+            try:
+                message_string = bytearray(message_bytes[0:message_length]).decode("utf-8")
+                print(message_string)
+                return(message_string)
+            except:
+                print("Couldn't decode as UTF 8")
+                pass
+        return ''
+    except:
+        return 'A'
 
 
 class Ultrasound():
@@ -336,7 +296,7 @@ def turn(direction):
     elif direction == 'WL':
         motor_left.forward(10)
         motor_right.forward(100)
-        sleep(1.63)
+        sleep(1.57)
         motor_left.off()
         motor_right.off()
     elif direction == 'UR':
@@ -362,7 +322,7 @@ def turn(direction):
             sleep(0.02)
         motor_left.reverse(20)
         motor_right.reverse(100)
-        sleep(0.3)
+        sleep(0.27)
         motor_left.off()
         motor_right.off()
         move_forward(0.3)
@@ -439,36 +399,7 @@ def drop():
 
 def load(current_location = 'da', spot_number = 1):
     print('loading')
-    # position sensor:# make sure linear actuator is bottomed out
-    '''
-    while ultrasound.value() >= 250: #approach till close
-        print(ultrasound.value())
-        state = find_type_of_line()
-        if state == 'ONLINE':
-            move_forward()
-        elif state == 'TJUNCTION': #if we get to the junction that the thing is placed on we can ignore the ultrasound
-            move_forward()
-        elif state == 'OFFRIGHT':
-            adjust('R')
-        elif state == 'OFFLEFT':
-            adjust('L')
-    while ultrasound.value() <= 300: #approach till far back enough
-        move_reverse()
-        print(ultrasound.value())
-    while ultrasound.value() >= 250: #approach till close
-        print(ultrasound.value())
-        state = find_type_of_line()
-        if state == 'ONLINE':
-            move_forward()
-        elif state == 'TJUNCTION': #if we get to the junction that the thing is placed on we can ignore the ultrasound
-            move_forward()
-        elif state == 'OFFRIGHT':
-            adjust('R')
-        elif state == 'OFFLEFT':
-            adjust('L')
-        #move_forward()
-    while ultrasound.value() <= 300: #approach till far back enough
-        move_reverse()'''
+
     state = find_type_of_line()
     while state != 'TJUNCTION':
         state = find_type_of_line()
@@ -483,20 +414,16 @@ def load(current_location = 'da', spot_number = 1):
         elif state == 'TJUNCTION': #if we get to the junction that the thing is placed on we can ignore the ultrasound
             move_forward(0.3)
         elif state == 'OFFRIGHT':
-            adjust('R',intensity=1)
+            adjust('R',intensity=0.7)
         elif state == 'OFFLEFT':
-            adjust('L',intensity=1)
+            adjust('L',intensity=0.7)
         QR = scan()
         tries += 1
         if tries > 300: #we are not finding a code so go to other depot
             #added line as qr code no work
             print('stop trying')
             QR = 'B'
-            if current_location == 'db':
-                pass
-                #return 'st'
-            pass
-            #return 'db'
+
     location = find_next_location(QR)
     move_forward(0.5)
     count = 0
@@ -508,11 +435,17 @@ def load(current_location = 'da', spot_number = 1):
                 count += 1
                 if count == 3 and spot_number == 4:
                     move_forward(0.5)
-                    lift()
+                    
                     if current_location == 'db':
+                        linear_actuator.reverse(100)
                         turn('UL')
+                        sleep(0.5)
+                        linear_actuator.off()
                     else:
+                        linear_actuator.reverse(100)
                         turn('UR')
+                        sleep(0.5)
+                        linear_actuator.off()
                     temp_count = 0
                     while temp_count < 10:
                         state = find_type_of_line()
@@ -525,11 +458,19 @@ def load(current_location = 'da', spot_number = 1):
                             move_forward()
                     return location
                 if count == spot_number:
-                    lift()
+                    linear_actuator.reverse(100)
+                    move_reverse(0.05)
                     if current_location == 'db':
+                        
                         turn('UL')
+                        sleep(0.45)
+                        linear_actuator.off()
+
                     else:
+                      
                         turn('UR')
+                        sleep(0.45)
+                        linear_actuator.off()
                     temp_count = 0
                     return location
                 move_forward(0.2)
@@ -556,6 +497,7 @@ def load(current_location = 'da', spot_number = 1):
 
 
 def unload():
+    linear_actuator.forward(100)
     state = find_type_of_line()
     while state != 'TJUNCTION':
         state = find_type_of_line()
@@ -565,9 +507,9 @@ def unload():
             adjust('R')
         elif state == 'OFFLEFT':
             adjust('L')
-    drop()
+    sleep(1.5)
     move_reverse(0.3) #we reverse so we no longer are touching the block
-
+    linear_actuator.off()
 def stop():
     led_pin.value(0)
     state = find_type_of_line()
@@ -636,13 +578,19 @@ def main():
                 steps_to_load = (current_block_number%4)
                 if steps_to_load == 0:
                     steps_to_load = 4
-                next_location = load(current_location, spot_number = steps_to_load)
-                path = (current_location,next_location)
+                temp = load(current_location, spot_number = steps_to_load)
+                
+                if current_location == 'db':
+                    if temp == 'hd':
+                        temp = 'ha'
+
+                
+                path = (current_location,temp)
                 fulfilled = True
             elif instruction == 'UNLOAD':
                 unload()
                 current_block_number += 1
-                if current_block_number > 7:
+                if current_block_number > 8:
                     next_location = 'st'
                 elif current_block_number > 4:
                     next_location = 'db'
@@ -657,3 +605,4 @@ while True:
         sleep(0.05)
     else:
         main()
+

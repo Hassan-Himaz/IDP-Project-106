@@ -1,0 +1,8 @@
+digraph "classes_MyProject" {
+rankdir=BT
+charset="utf-8"
+"mainv3.DFRobotVL53L0X" [color="black", fontcolor="black", label=<{DFRobotVL53L0X|address : int<br ALIGN="LEFT"/>i2c<br ALIGN="LEFT"/>started : bool<br ALIGN="LEFT"/>|init_sensor()<br ALIGN="LEFT"/>read_distance()<br ALIGN="LEFT"/>start()<br ALIGN="LEFT"/>stop()<br ALIGN="LEFT"/>}>, shape="record", style="solid"];
+"mainv3.Motor" [color="black", fontcolor="black", label=<{Motor|m1Dir<br ALIGN="LEFT"/>pwm1<br ALIGN="LEFT"/>|forward(power)<br ALIGN="LEFT"/>off()<br ALIGN="LEFT"/>reverse(power)<br ALIGN="LEFT"/>}>, shape="record", style="solid"];
+"mainv3.QRScanner" [color="black", fontcolor="black", label=<{QRScanner|TINY_CODE_READER_DELAY : float<br ALIGN="LEFT"/>TINY_CODE_READER_I2C_ADDRESS : int<br ALIGN="LEFT"/>TINY_CODE_READER_I2C_BYTE_COUNT<br ALIGN="LEFT"/>TINY_CODE_READER_I2C_FORMAT : str<br ALIGN="LEFT"/>TINY_CODE_READER_LENGTH_FORMAT : str<br ALIGN="LEFT"/>TINY_CODE_READER_LENGTH_OFFSET : int<br ALIGN="LEFT"/>TINY_CODE_READER_MESSAGE_FORMAT : str<br ALIGN="LEFT"/>TINY_CODE_READER_MESSAGE_OFFSET<br ALIGN="LEFT"/>TINY_CODE_READER_MESSAGE_SIZE : int<br ALIGN="LEFT"/>i2c<br ALIGN="LEFT"/>i2c_address : int<br ALIGN="LEFT"/>|}>, shape="record", style="solid"];
+"mainv3.Ultrasound" [color="black", fontcolor="black", label=<{Ultrasound|dist : int<br ALIGN="LEFT"/>measurements : list<br ALIGN="LEFT"/>one_measurement<br ALIGN="LEFT"/>pin_value<br ALIGN="LEFT"/>sensor_pin<br ALIGN="LEFT"/>trials : int<br ALIGN="LEFT"/>|value()<br ALIGN="LEFT"/>}>, shape="record", style="solid"];
+}

@@ -1,0 +1,83 @@
+@startuml
+
+' Class: Motor
+class Motor {
+  - m1Dir: Pin
+  - pwm1: PWM
+  + __init__(dir_pin: int, pwm_pin: int)
+  + off(): void
+  + forward(power: float): void
+  + reverse(power: float): void
+}
+
+' Class: DFRobotVL53L0X
+class DFRobotVL53L0X {
+  - _IO_TIMEOUT: const
+  - _SYSRANGE_START: const
+  - _RESULT_RANGE_STATUS: const
+  - i2c: I2C
+  - address: int
+  - started: bool
+  + __init__(i2c: I2C, address: int)
+  + init_sensor(): void
+  + start(): void
+  + stop(): void
+  + read_distance(): int
+  - _write_byte(register: int, data: int): int
+  - _read_byte(register: int): int
+}
+
+' Class: QRScanner
+class QRScanner {
+  - i2c_address: int
+  - TINY_CODE_READER_I2C_ADDRESS: int
+  - TINY_CODE_READER_DELAY: float
+  - TINY_CODE_READER_LENGTH_OFFSET: int
+  - TINY_CODE_READER_LENGTH_FORMAT: string
+  - TINY_CODE_READER_MESSAGE_OFFSET: int
+  - TINY_CODE_READER_MESSAGE_SIZE: int
+  - TINY_CODE_READER_MESSAGE_FORMAT: string
+  - TINY_CODE_READER_I2C_FORMAT: string
+  - TINY_CODE_READER_I2C_BYTE_COUNT: int
+  - i2c: I2C
+  + __init__(i2c_address: int, sda_pin: int, scl_pin: int, freq: int)
+  + scan(): string
+}
+
+' Class: Ultrasound
+class Ultrasound {
+  - sensor_pin: ADC
+  + __init__()
+  + value(): float
+}
+
+' Class: MainRobot
+class MainRobot {
+  - motor_left: Motor
+  - motor_right: Motor
+  - linear_actuator: Motor
+  - flls: Pin
+  - lls: Pin
+  - rls: Pin
+  - frls: Pin
+  - ultrasound: Ultrasound
+  + find_type_of_line(): string
+  + move_forward(time: float): void
+  + turn(direction: string): void
+  + adjust(direction: string, intensity: float): void
+  + move_reverse(time: float): void
+  + find_next_location(longtext: string): string
+  + lift(): void
+  + drop(): void
+  + load(current_location: string, spot_number: int): string
+  + unload(): void
+  + stop(): void
+}
+
+' Relationships between classes
+Motor --> MainRobot
+DFRobotVL53L0X --> MainRobot
+QRScanner --> MainRobot
+Ultrasound --> MainRobot
+
+@enduml

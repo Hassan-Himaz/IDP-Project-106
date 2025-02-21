@@ -34,157 +34,6 @@ class Motor():
         self.m1Dir.value(1)
         self.pwm1.duty_u16(int(65535*power/100))
 
-
-
-class DFRobotVL53L0X:
-    _IO_TIMEOUT = const(1000)
-    _SYSRANGE_START = const(0x00)
-    _RESULT_RANGE_STATUS = const(0x14)
-
-
-    def __init__(self, i2c, address=0x29): # Default VL53L0X address is 0x29
-        self.i2c = i2c
-        self._IO_TIMEOUT = const(1000)
-        self._SYSRANGE_START = const(0x00)
-        self._RESULT_RANGE_STATUS = const(0x14)
-        self.address = address
-        self.init_sensor()
-        self.started = False
-
-
-    def init_sensor(self):
-        """Check sensor connection and initialize VL53L0X."""
-        if self.address not in self.i2c.scan():
-            pass
-            #raise RuntimeError("VL53L0X not found on I2C bus")
-        # Sensor Initialization Sequence
-        self._write_byte(0x88, 0x00)
-        self._write_byte(0x80, 0x01)
-        self._write_byte(0xFF, 0x01)
-        self._write_byte(0x00, 0x00)
-        self._write_byte(0x91, self._read_byte(0x91))
-        self._write_byte(0x00, 0x01)
-        self._write_byte(0xFF, 0x00)
-        self._write_byte(0x80, 0x00)
-
-
-    def start(self):
-        """Start continuous measurement mode."""
-        self._write_byte(self._SYSRANGE_START, 0x01)
-        self.started = True
-
-
-    def stop(self):
-        """Stop continuous measurement."""
-        self._write_byte(self._SYSRANGE_START, 0x00)
-        self.started = False
-
-
-    def read_distance(self):
-        """Read distance measurement in mm."""
-        if not self.started:
-            self.start()
-        # Wait for measurement to complete
-        for _ in range(10): # Retry up to 10 times
-            status = self._read_byte(self._RESULT_RANGE_STATUS)
-            if status & 0x01: # Data ready bit
-                break
-            time.sleep_ms(10)
-        else:
-            return -1 # Timeout or no valid data
-        # Read distance data
-        '''
-        data = self.i2c.readfrom_mem(self.address, 0x14, 12)
-        distance = struct.unpack(">H", data[10:12])[0]
-        return distance'''
-        try:
-            data = self.i2c.readfrom_mem(self.address, 0x14, 12)
-            if len(data) < 12:
-                return -1 # Not enough data received
-            distance = struct.unpack(">H", data[10:12])[0]
-            # Handle out-of-range measurements
-            if distance == 0 or distance > 2000: # VL53L0X max range ~2000mm
-                return -1 # Mark invalid measurement
-            return distance
-        except OSError as e:
-            print("I2C Read Error:", e)
-            return -1
-
-
-    def _write_byte(self, register, data):
-        """Write one byte to a register."""
-        try:
-            self.i2c.writeto_mem(self.address, register, bytes([data]))
-        except:
-            return -1
-
-
-    def _read_byte(self, register):
-        """Read one byte from a register."""
-        try:
-            return self.i2c.readfrom_mem(self.address, register, 1)[0]
-        except:
-            return -1
-# -------- USAGE EXAMPLE --------
-i2c = I2C(0, scl=Pin(21), sda=Pin(20)) # Adjust pins as needed
-sensor = DFRobotVL53L0X(i2c)
-
-
-def tof_scan():
-    i2c = I2C(0, scl=Pin(21), sda=Pin(20)) # Adjust pins as needed
-    sensor = DFRobotVL53L0X(i2c)
-    distance = sensor.read_distance()
-    if distance > 30: # Only accept valid distances
-        return distance
-    else:
-        return 0
-    time.sleep(0.5)
-# Adjust measurement frequency
-
-
-
-class QRScanner:
-
-
-    def __init__(self, i2c_address=0x0C, sda_pin=18, scl_pin=19, freq=400000):
-        # Initialize the I2C interface
-        self.i2c_address = i2c_address
-        self.TINY_CODE_READER_I2C_ADDRESS = self.i2c_address
-        self.TINY_CODE_READER_DELAY = 0.05
-        self.TINY_CODE_READER_LENGTH_OFFSET = 0
-        self.TINY_CODE_READER_LENGTH_FORMAT = "H"
-        self.TINY_CODE_READER_MESSAGE_OFFSET = self.TINY_CODE_READER_LENGTH_OFFSET + struct.calcsize(self.TINY_CODE_READER_LENGTH_FORMAT)
-        self.TINY_CODE_READER_MESSAGE_SIZE = 254
-        self.TINY_CODE_READER_MESSAGE_FORMAT = "B" * self.TINY_CODE_READER_MESSAGE_SIZE
-        self.TINY_CODE_READER_I2C_FORMAT = self.TINY_CODE_READER_LENGTH_FORMAT + self.TINY_CODE_READER_MESSAGE_FORMAT
-        self.TINY_CODE_READER_I2C_BYTE_COUNT = struct.calcsize(self.TINY_CODE_READER_I2C_FORMAT)
-        # Set up the I2C interface with the provided pins and frequency
-        self.i2c = machine.I2C(1,
-                               scl=machine.Pin(scl_pin), # yellow
-                               sda=machine.Pin(sda_pin), # blue
-                               freq=freq)
-        print(self.i2c.scan())
-
-
-def scan():
-    for x in range(10): #these can be changed
-        print('trying')
-        sleep(TINY_CODE_READER_DELAY)
-        read_data = i2c.readfrom(TINY_CODE_READER_I2C_ADDRESS,
-                                 TINY_CODE_READER_I2C_BYTE_COUNT)
-        print('raw data',read_data)
-        message_length, = struct.unpack_from(TINY_CODE_READER_LENGTH_FORMAT, read_data,
-    TINY_CODE_READER_LENGTH_OFFSET)
-        message_bytes = struct.unpack_from(TINY_CODE_READER_MESSAGE_FORMAT, read_data,
-    TINY_CODE_READER_MESSAGE_OFFSET)
-        try:
-            message_string = bytearray(message_bytes[0:message_length]).decode("utf-8")
-            print(message_string)
-            return(message_string)
-        except:
-            print("Couldn't decode as UTF 8")
-            pass
-    return ''
 TINY_CODE_READER_I2C_ADDRESS = 0x0C
 TINY_CODE_READER_DELAY = 0.1
 TINY_CODE_READER_LENGTH_OFFSET = 0
@@ -199,60 +48,32 @@ i2c = machine.I2C(1,
                   scl=machine.Pin(19), # yellow
                   sda=machine.Pin(18), # blue
                   freq=400000)
-print(i2c.scan())
-# Keep looping and reading the sensor results until we get a QR code
+
 
 
 def scan():
-    for x in range(10): #these can be changed
-        print('trying')
-        sleep(TINY_CODE_READER_DELAY)
-        read_data = i2c.readfrom(TINY_CODE_READER_I2C_ADDRESS,
-                                 TINY_CODE_READER_I2C_BYTE_COUNT)
-        print('raw data',read_data)
-        message_length, = struct.unpack_from(TINY_CODE_READER_LENGTH_FORMAT, read_data,
-    TINY_CODE_READER_LENGTH_OFFSET)
-        message_bytes = struct.unpack_from(TINY_CODE_READER_MESSAGE_FORMAT, read_data,
-    TINY_CODE_READER_MESSAGE_OFFSET)
-        try:
-            message_string = bytearray(message_bytes[0:message_length]).decode("utf-8")
-            print(message_string)
-            return(message_string)
-        except:
-            print("Couldn't decode as UTF 8")
-            pass
-    return ''
+    try:
+        for x in range(10): #these can be changed
+            print('trying')
+            sleep(TINY_CODE_READER_DELAY)
+            read_data = i2c.readfrom(TINY_CODE_READER_I2C_ADDRESS,
+                                     TINY_CODE_READER_I2C_BYTE_COUNT)
+            print('raw data',read_data)
+            message_length, = struct.unpack_from(TINY_CODE_READER_LENGTH_FORMAT, read_data,
+        TINY_CODE_READER_LENGTH_OFFSET)
+            message_bytes = struct.unpack_from(TINY_CODE_READER_MESSAGE_FORMAT, read_data,
+        TINY_CODE_READER_MESSAGE_OFFSET)
+            try:
+                message_string = bytearray(message_bytes[0:message_length]).decode("utf-8")
+                print(message_string)
+                return(message_string)
+            except:
+                print("Couldn't decode as UTF 8")
+                pass
+        return ''
+    except:
+        return 'A'
 
-
-
-class Ultrasound():
-
-
-    def __init__(self):
-        self.sensor_pin = ADC(28)
-
-
-    def value(self):
-        return tof_scan()
-        self.measurements = []
-        self.trials = 0
-        while(len(self.measurements) <= 20): # maximum time should be 0.03 seconds
-            self.pin_value = self.sensor_pin.read_u16()
-            self.one_measurement = (self.pin_value*500)/65535
-            if(self.one_measurement < 30):
-                self.measurements.append(self.one_measurement)
-            sleep(0.001)
-            self.trials += 1
-            if self.trials > 30:
-                return 30 # if we are having to take too many readings then we have an issue and should just return the base value
-        self.dist = 0
-        self.measurements.sort()
-        self.measurements = self.measurements[4:15]
-        for x in self.measurements:
-            self.dist += x
-        self.dist = self.dist/len(self.measurements)
-        print(self.dist)
-        return self.dist
 led_pin = Pin(22,Pin.OUT)
 button_pin = Pin(14, Pin.IN, Pin.PULL_DOWN)
 paths = { #needs to be updated so that we have backout aswell
@@ -285,7 +106,7 @@ flls = Pin(17, Pin.IN, Pin.PULL_DOWN)#far left line sensor
 lls = Pin(12, Pin.IN, Pin.PULL_DOWN)
 rls = Pin(26, Pin.IN, Pin.PULL_DOWN)
 frls = Pin(16, Pin.IN, Pin.PULL_DOWN)
-ultrasound = Ultrasound()
+
 
 
 def find_type_of_line(): #tells us if we are on a line, veering off, at a junction(left,right,T)
@@ -336,7 +157,7 @@ def turn(direction):
     elif direction == 'WL':
         motor_left.forward(10)
         motor_right.forward(100)
-        sleep(1.63)
+        sleep(1.57)
         motor_left.off()
         motor_right.off()
     elif direction == 'UR':
@@ -362,7 +183,7 @@ def turn(direction):
             sleep(0.02)
         motor_left.reverse(20)
         motor_right.reverse(100)
-        sleep(0.3)
+        sleep(0.27)
         motor_left.off()
         motor_right.off()
         move_forward(0.3)
@@ -439,36 +260,7 @@ def drop():
 
 def load(current_location = 'da', spot_number = 1):
     print('loading')
-    # position sensor:# make sure linear actuator is bottomed out
-    '''
-    while ultrasound.value() >= 250: #approach till close
-        print(ultrasound.value())
-        state = find_type_of_line()
-        if state == 'ONLINE':
-            move_forward()
-        elif state == 'TJUNCTION': #if we get to the junction that the thing is placed on we can ignore the ultrasound
-            move_forward()
-        elif state == 'OFFRIGHT':
-            adjust('R')
-        elif state == 'OFFLEFT':
-            adjust('L')
-    while ultrasound.value() <= 300: #approach till far back enough
-        move_reverse()
-        print(ultrasound.value())
-    while ultrasound.value() >= 250: #approach till close
-        print(ultrasound.value())
-        state = find_type_of_line()
-        if state == 'ONLINE':
-            move_forward()
-        elif state == 'TJUNCTION': #if we get to the junction that the thing is placed on we can ignore the ultrasound
-            move_forward()
-        elif state == 'OFFRIGHT':
-            adjust('R')
-        elif state == 'OFFLEFT':
-            adjust('L')
-        #move_forward()
-    while ultrasound.value() <= 300: #approach till far back enough
-        move_reverse()'''
+
     state = find_type_of_line()
     while state != 'TJUNCTION':
         state = find_type_of_line()
@@ -483,20 +275,16 @@ def load(current_location = 'da', spot_number = 1):
         elif state == 'TJUNCTION': #if we get to the junction that the thing is placed on we can ignore the ultrasound
             move_forward(0.3)
         elif state == 'OFFRIGHT':
-            adjust('R',intensity=1)
+            adjust('R',intensity=0.7)
         elif state == 'OFFLEFT':
-            adjust('L',intensity=1)
+            adjust('L',intensity=0.7)
         QR = scan()
         tries += 1
         if tries > 300: #we are not finding a code so go to other depot
             #added line as qr code no work
             print('stop trying')
             QR = 'B'
-            if current_location == 'db':
-                pass
-                #return 'st'
-            pass
-            #return 'db'
+
     location = find_next_location(QR)
     move_forward(0.5)
     count = 0
@@ -508,11 +296,17 @@ def load(current_location = 'da', spot_number = 1):
                 count += 1
                 if count == 3 and spot_number == 4:
                     move_forward(0.5)
-                    lift()
+                    
                     if current_location == 'db':
+                        linear_actuator.reverse(100)
                         turn('UL')
+                        sleep(0.5)
+                        linear_actuator.off()
                     else:
+                        linear_actuator.reverse(100)
                         turn('UR')
+                        sleep(0.5)
+                        linear_actuator.off()
                     temp_count = 0
                     while temp_count < 10:
                         state = find_type_of_line()
@@ -525,11 +319,19 @@ def load(current_location = 'da', spot_number = 1):
                             move_forward()
                     return location
                 if count == spot_number:
-                    lift()
+                    linear_actuator.reverse(100)
+                    move_reverse(0.05)
                     if current_location == 'db':
+                        
                         turn('UL')
+                        sleep(0.45)
+                        linear_actuator.off()
+
                     else:
+                      
                         turn('UR')
+                        sleep(0.45)
+                        linear_actuator.off()
                     temp_count = 0
                     return location
                 move_forward(0.2)
@@ -556,6 +358,7 @@ def load(current_location = 'da', spot_number = 1):
 
 
 def unload():
+    linear_actuator.forward(100)
     state = find_type_of_line()
     while state != 'TJUNCTION':
         state = find_type_of_line()
@@ -565,8 +368,9 @@ def unload():
             adjust('R')
         elif state == 'OFFLEFT':
             adjust('L')
-    drop()
+    sleep(1.5)
     move_reverse(0.3) #we reverse so we no longer are touching the block
+    linear_actuator.off()
 
 def stop():
     led_pin.value(0)
@@ -636,13 +440,19 @@ def main():
                 steps_to_load = (current_block_number%4)
                 if steps_to_load == 0:
                     steps_to_load = 4
-                next_location = load(current_location, spot_number = steps_to_load)
-                path = (current_location,next_location)
+                temp = load(current_location, spot_number = steps_to_load)
+                
+                if current_location == 'db':
+                    if temp == 'hd':
+                        temp = 'ha'
+
+                
+                path = (current_location,temp)
                 fulfilled = True
             elif instruction == 'UNLOAD':
                 unload()
                 current_block_number += 1
-                if current_block_number > 7:
+                if current_block_number > 8:
                     next_location = 'st'
                 elif current_block_number > 4:
                     next_location = 'db'
@@ -657,3 +467,4 @@ while True:
         sleep(0.05)
     else:
         main()
+
